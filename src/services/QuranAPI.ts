@@ -1,4 +1,15 @@
 // src/services/QuranAPI.ts
+export interface SuratName{
+  long: string;
+  short: string;
+  transliteration:{
+    id: string;
+  },
+  translation:{
+    id: string;
+  }
+}
+
 
 export interface Verse {
   number: {
@@ -28,15 +39,31 @@ export interface Ayat {
   tafsir: string;
 }
 
-export async function fetchAlMulk(): Promise<Ayat[]> {
+export interface SurahData{
+  name: SuratName;
+  verses: Ayat[];
+}
+
+export async function fetchAlMulk(): Promise<SurahData> {
   const res = await fetch("https://quran-api-id.vercel.app/surah/67");
 
   if (!res.ok) {
     throw new Error(`HTTP Error ${res.status}`);
   }
 
+
   const data = await res.json();
-  console.log("🔥 Data dari API:", data); // <== Tambahkan baris ini
+  
+  const NameData: SuratName = {
+    long:data.data.name.long,
+    short:data.data.name.short,
+    transliteration:{
+      id:data.data.name.transliteration.id,
+    },
+    translation:{
+      id:data.data.name.translation.id,
+    }
+  }
 
   const verses = data.data?.verses;
 
@@ -45,12 +72,25 @@ export async function fetchAlMulk(): Promise<Ayat[]> {
     throw new Error("Struktur data API tidak valid (tidak ada data.verses)");
   }
 
-  return verses.map((verse: Verse) => ({
+  const ayatList: Ayat[] = verses.map((verse:Verse)=>({
     id: verse.number.inSurah,
     arab: verse.text.arab,
     latin: verse.text.transliteration.en,
     terjemahan: verse.translation.id,
     tafsir: verse.tafsir.id.short,
   }));
+
+  // return verses.map((verse: Verse) => ({
+  //   id: verse.number.inSurah,
+  //   arab: verse.text.arab,
+  //   latin: verse.text.transliteration.en,
+  //   terjemahan: verse.translation.id,
+  //   tafsir: verse.tafsir.id.short,
+  // }));
+
+  return{
+    name: NameData,
+    verses: ayatList,
+  }
 }
 

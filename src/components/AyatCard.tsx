@@ -5,14 +5,17 @@ interface AyatCardProps {
   latin?: string;
   terjemahan?: string;
   tafsir?: string;
+  name?: string;
+  transliteration?: string;
+  translation?: string;
 }
 
-export default function AyatCard({ arab, latin, terjemahan, tafsir }: AyatCardProps) {
+export default function AyatCard({ arab, latin, terjemahan, tafsir,name,transliteration,translation }: AyatCardProps) {
   return (
     <Card className="mb-6 shadow-lg border">
       <CardHeader className=" text-secondary-foreground">
         <CardTitle className="text-2xl text-center">
-          الْمُلْك - Al-Mulk (Kerajaan)
+          {name} - {transliteration} ({translation})
         </CardTitle>
       </CardHeader>
 
