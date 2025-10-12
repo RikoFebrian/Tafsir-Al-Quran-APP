@@ -44,13 +44,12 @@ const VoiceRecognitionButton: React.FC<Props> = ({ onResult }) => {
   const handleStartListening = async () => {
     setListening(true);
 
-    // 🔄 Coba di 3 bahasa berbeda
     const langs = ["ar-SA", "id-ID", "en-US"];
     let transcript: string | null = null;
 
     for (const lang of langs) {
       transcript = await recognizeInLang(lang);
-      if (transcript) break; // berhenti kalau sudah dapat hasil
+      if (transcript) break; 
     }
 
     setListening(false);
@@ -61,13 +60,14 @@ const VoiceRecognitionButton: React.FC<Props> = ({ onResult }) => {
   return (
     <button
       onClick={handleStartListening}
-      className={`p-3 mt-4 rounded-xl text-white w-full ${
-        listening ? "bg-red-600" : "bg-green-600"
-      }`}
+      className={`p-3 mt-4 rounded-xl text-black font-semibold w-full border ${
+      listening ? "bg-red-300" : "bg-green-300 hover:bg-green-400"
+    }`}
     >
-      🎤 {listening ? "Mendengarkan..." : "Mulai Baca Ayat / Tafsir"}
+      🎤 {listening ? "Mendengarkan..." : "Mulai Baca Ayat"}
     </button>
   );
 };
 
 export default VoiceRecognitionButton;
+
