@@ -48,9 +48,9 @@ export default function App() {
   if (result.length > 0) {
     const found = result[0].item;
     setCurrentAyat(found.id);
-    alert(`✅ Ditemukan ayat ke-${found.id}`);
+    alert(`Ditemukan ayat ke-${found.id}`);
   } else {
-    alert("❌ Ayat tidak ditemukan. Coba ulangi lebih jelas atau pendekkan bacaan.");
+    alert("Ayat tidak ditemukan. Coba ulangi lebih jelas.");
   }
 };
 
