@@ -1,20 +1,12 @@
 import { useEffect, useState } from "react";
-<<<<<<< HEAD
 import { useParams, useNavigate } from "react-router-dom";
 import Fuse from "fuse.js";
 import { fetchSurah, type SurahData } from "@/services/QuranAPI";
 import Header from "@/components/header";
-=======
-import Fuse from "fuse.js"; 
-import { fetchAlMulk, type SurahData } from "@/services/QuranAPI";
-import Header from "@/components/header";
-import VoiceRecognitionButton from "@/components/VoiceRecognitionButton";
->>>>>>> 487306ce68bf7a869c1dfb704081bd5d6e74012b
 import NavigationButtons from "@/components/NavigationButtons";
 import AyatCard from "@/components/AyatCard";
 import AyatPagination from "@/components/AyatPagination";
 import Footer from "@/components/Footer";
-<<<<<<< HEAD
 import SearchBar from "@/components/SearchBar";
 import { Button } from "@/components/ui/button";
 import { Home, Mic } from "lucide-react";
@@ -24,31 +16,25 @@ import { Input } from "@/components/ui/input";
 export default function App() {
   const { surahNumber } = useParams<{ surahNumber: string }>();
   const navigate = useNavigate();
-=======
-
-export default function App() {
->>>>>>> 487306ce68bf7a869c1dfb704081bd5d6e74012b
   const [tafsirData, setTafsirData] = useState<SurahData | null>(null);
   const [currentAyat, setCurrentAyat] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-<<<<<<< HEAD
   const [searchText, setSearchText] = useState<string>("");
   const [isListening, setIsListening] = useState(false);
   const [recognitionAvailable, setRecognitionAvailable] = useState(false);
   const [voiceResult, setVoiceResult] = useState<string>("");
   const [showVoiceCorrection, setShowVoiceCorrection] = useState(false);
   const [isRecitationMode, setIsRecitationMode] = useState(false);
-  const [recitationResult, setRecitationResult] = useState<string>("");
-  const [showRecitationCorrection, setShowRecitationCorrection] = useState(false);
 
+  // Check speech recognition availability
   useEffect(() => {
-    // Check if speech recognition is available
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     setRecognitionAvailable(!!SpeechRecognition);
   }, []);
 
+  // Load surah data
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -58,14 +44,6 @@ export default function App() {
         const data = await fetchSurah(num);
         setTafsirData(data);
         setCurrentAyat(1);
-=======
-
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const data = await fetchAlMulk();
-        setTafsirData(data);
->>>>>>> 487306ce68bf7a869c1dfb704081bd5d6e74012b
       } catch (err) {
         console.error(err);
         setError("Gagal memuat data dari API");
@@ -74,9 +52,9 @@ export default function App() {
       }
     };
     loadData();
-<<<<<<< HEAD
   }, [surahNumber]);
 
+  // Search function
   const performSearch = (term: string) => {
     if (!tafsirData || !term.trim()) {
       alert("Masukkan kata kunci pencarian");
@@ -106,6 +84,7 @@ export default function App() {
     }
   };
 
+  // Start listening for text search
   const startListening = () => {
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -149,7 +128,7 @@ export default function App() {
     setIsListening(false);
   };
 
-  // Pencarian dengan melantunkan ayat (multi-language)
+  // Multi-language recitation search
   const startRecitationSearch = async () => {
     if (!tafsirData) return;
 
@@ -231,7 +210,8 @@ export default function App() {
 
   const currentTafsir = tafsirData?.verses.find((ayat) => ayat.id === currentAyat);
 
-  if (loading)
+  // Loading state
+  if (loading) {
     return (
       <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center">
@@ -240,8 +220,10 @@ export default function App() {
         </div>
       </div>
     );
+  }
 
-  if (error)
+  // Error state
+  if (error) {
     return (
       <div className="min-h-screen bg-muted flex items-center justify-center">
         <div className="text-center text-destructive">
@@ -250,48 +232,25 @@ export default function App() {
         </div>
       </div>
     );
-
-=======
-  }, []);
-
-  // Handler voice recognition
-  const handleVoiceResult = (recognizedText: string) => {
-  if (!tafsirData) return;
-
-  const term = recognizedText
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, "") // hilangkan simbol
-    .normalize("NFKC");
-
-  const fuse = new Fuse(tafsirData.verses, {
-    keys: ["arab", "latin", "terjemahan", "tafsir"],
-    threshold: 0.9, 
-  });
-
-  const result = fuse.search(term);
-
-  if (result.length > 0) {
-    const found = result[0].item;
-    setCurrentAyat(found.id);
-    alert(`Ditemukan ayat ke-${found.id}`);
-  } else {
-    alert("Ayat tidak ditemukan. Coba ulangi lebih jelas.");
   }
-};
 
-  const currentTafsir = tafsirData?.verses.find(
-    (ayat) => ayat.id === currentAyat
-  );
-
-  if (loading) return <div className="text-center mt-20">Memuat data...</div>;
-  if (error) return <div className="text-center mt-20 text-red-500">{error}</div>;
->>>>>>> 487306ce68bf7a869c1dfb704081bd5d6e74012b
-  if (!tafsirData) return <div>Tidak ada data.</div>;
+  // No data state
+  if (!tafsirData) {
+    return (
+      <div className="min-h-screen bg-muted flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground">Tidak ada data.</p>
+          <Button onClick={() => navigate("/")} className="mt-4">
+            Kembali ke Beranda
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-muted py-8 px-4">
       <div className="max-w-4xl mx-auto">
-<<<<<<< HEAD
         {/* Back to Home Button */}
         <div className="mb-4">
           <Button
@@ -305,15 +264,11 @@ export default function App() {
         </div>
 
         {/* Header Surah */}
-=======
-        {/* 🔹 Header Surah */}
->>>>>>> 487306ce68bf7a869c1dfb704081bd5d6e74012b
         <Header
-          name={tafsirData?.name.long}
-          transliteration={tafsirData?.name.transliteration.id}
+          name={tafsirData.name.long}
+          transliteration={tafsirData.name.transliteration.id}
         />
 
-<<<<<<< HEAD
         {/* Search Bar */}
         <SearchBar
           searchText={searchText}
@@ -325,7 +280,7 @@ export default function App() {
           recognitionAvailable={recognitionAvailable}
         />
 
-        {/* Tombol Pencarian dengan Melantunkan Ayat */}
+        {/* Recitation Search Card */}
         {recognitionAvailable && (
           <Card className="mb-6 bg-gradient-to-r from-primary/5 to-accent/5 border-primary/20">
             <CardContent className="pt-6">
@@ -360,7 +315,7 @@ export default function App() {
           </Card>
         )}
 
-        {/* Voice Recognition Result Correction */}
+        {/* Voice Correction Card */}
         {showVoiceCorrection && voiceResult && (
           <Card className="mb-6 border-primary/50 bg-primary/5">
             <CardContent className="pt-6">
@@ -384,34 +339,22 @@ export default function App() {
             </CardContent>
           </Card>
         )}
-=======
-        {/* Tombol Voice Recognition */}
-        <div className="flex justify-center mb-6">
-          <VoiceRecognitionButton onResult={handleVoiceResult} />
-        </div>
->>>>>>> 487306ce68bf7a869c1dfb704081bd5d6e74012b
 
-        {/* Navigasi antar ayat */}
+        {/* Navigation Buttons */}
         <NavigationButtons
           current={currentAyat}
           total={tafsirData.verses.length}
           onPrev={() => setCurrentAyat((c) => Math.max(1, c - 1))}
-<<<<<<< HEAD
-          onNext={() =>
-            setCurrentAyat((c) => Math.min(tafsirData.verses.length, c + 1))
-          }
-=======
           onNext={() => setCurrentAyat((c) => Math.min(tafsirData.verses.length, c + 1))}
->>>>>>> 487306ce68bf7a869c1dfb704081bd5d6e74012b
         />
 
-        {/* Kartu Ayat */}
-        {currentTafsir && tafsirData && (
+        {/* Ayat Card */}
+        {currentTafsir && (
           <AyatCard
             {...currentTafsir}
-            name={tafsirData?.name.short}
-            transliteration={tafsirData?.name.transliteration.id}
-            translation={tafsirData?.name.translation.id}
+            name={tafsirData.name.short}
+            transliteration={tafsirData.name.transliteration.id}
+            translation={tafsirData.name.translation.id}
           />
         )}
 
@@ -424,14 +367,10 @@ export default function App() {
 
         {/* Footer */}
         <Footer
-          name={tafsirData?.name.short}
-          transliteration={tafsirData?.name.transliteration.id}
+          name={tafsirData.name.short}
+          transliteration={tafsirData.name.transliteration.id}
         />
       </div>
     </div>
   );
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 487306ce68bf7a869c1dfb704081bd5d6e74012b
