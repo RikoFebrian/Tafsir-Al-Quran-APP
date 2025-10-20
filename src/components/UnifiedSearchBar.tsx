@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff, Search } from "lucide-react";
@@ -18,71 +18,74 @@ export default function UnifiedSearchBar({
 }: UnifiedSearchBarProps) {
   const [isListening, setIsListening] = useState(false);
   const [detectedMode, setDetectedMode] = useState<string>("");
+  const recognitionRef = useRef<any>(null);
 
   // Fungsi untuk mendeteksi apakah input adalah lantunan ayat atau kata kunci
   const detectInputType = (text: string): boolean => {
-    // Indikator bahwa ini adalah lantunan ayat (lebih dari 5 kata atau mengandung tanda baca khas ayat)
     const wordCount = text.trim().split(/\s+/).length;
-    const hasArabicDiacritics = /[\u064B-\u065F]/.test(text); // Tashkeel
+    const hasArabicDiacritics = /[\u064B-\u065F]/.test(text);
     const hasLongPhrase = wordCount > 5;
     const hasArabicText = /[\u0600-\u06FF]/.test(text);
     
-    // Jika panjang atau mengandung tashkeel atau banyak kata Arab, kemungkinan lantunan
     return (hasLongPhrase && hasArabicText) || hasArabicDiacritics;
   };
 
-  const startSmartVoiceSearch = async () => {
+  const stopRecognition = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {
+        console.log("Recognition already stopped");
+      }
+      recognitionRef.current = null;
+    }
+    setIsListening(false);
+    setDetectedMode("");
+  };
+
+  const startVoiceRecognition = () => {
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      alert("Browser tidak mendukung Speech Recognition");
+      alert("❌ Browser Anda tidak mendukung Speech Recognition.\nCoba gunakan Chrome/Edge.");
       return;
     }
 
+    // Cleanup previous recognition
+    stopRecognition();
+
     setIsListening(true);
-    setDetectedMode("Mendengarkan...");
+    setDetectedMode("🎤 Mendengarkan...");
 
-    // Fungsi untuk recognize dalam bahasa tertentu
-    const recognizeInLang = (lang: string): Promise<string | null> => {
-      return new Promise((resolve) => {
-        const recognition = new SpeechRecognition();
-        recognition.lang = lang;
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
 
-        recognition.onresult = (event: any) => {
-          const transcript = event.results[0][0].transcript;
-          console.log(`🎧 [${lang}] hasil:`, transcript);
-          resolve(transcript);
-        };
+    // Configuration
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    
+    // Try Indonesian first (more common for keyword search)
+    recognition.lang = "id-ID";
 
-        recognition.onerror = (e: any) => {
-          console.error(`❌ Error [${lang}]:`, e);
-          resolve(null);
-        };
+    let hasResult = false;
 
-        recognition.start();
-      });
+    recognition.onstart = () => {
+      console.log("✅ Speech recognition started");
+      setDetectedMode("🎤 Sedang mendengarkan... Silakan berbicara!");
     };
 
-    // Coba mengenali dalam berbagai bahasa
-    const langs = ["ar-SA", "id-ID", "en-US"];
-    let transcript: string | null = null;
-    let detectedLang = "";
-
-    for (const lang of langs) {
-      transcript = await recognizeInLang(lang);
-      if (transcript) {
-        detectedLang = lang;
-        break;
-      }
-    }
-
-    setIsListening(false);
-
-    if (transcript) {
-      // Deteksi otomatis: lantunan atau kata kunci
+    recognition.onresult = (event: any) => {
+      hasResult = true;
+      const transcript = event.results[0][0].transcript;
+      const confidence = event.results[0][0].confidence;
+      
+      console.log(`🎧 Hasil: "${transcript}" (confidence: ${confidence})`);
+      
+      setSearchText(transcript);
+      
+      // Auto-detect type
       const isRecitation = detectInputType(transcript);
       
       if (isRecitation) {
@@ -91,33 +94,96 @@ export default function UnifiedSearchBar({
         setDetectedMode("🔍 Terdeteksi: Kata Kunci");
       }
 
-      // Set ke input field
-      setSearchText(transcript);
-
-      // Auto search setelah 1 detik
+      // Auto search after 1 second
       setTimeout(() => {
         onSearch(transcript, isRecitation);
         setDetectedMode("");
+        setIsListening(false);
       }, 1000);
-    } else {
-      setDetectedMode("");
-      alert("Tidak ada hasil suara yang dikenali.");
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("❌ Speech recognition error:", event.error);
+      
+      let errorMessage = "Terjadi kesalahan: ";
+      
+      switch (event.error) {
+        case "no-speech":
+          errorMessage += "Tidak ada suara terdeteksi. Coba lagi dan berbicara lebih keras.";
+          break;
+        case "audio-capture":
+          errorMessage += "Mikrofon tidak ditemukan atau tidak bisa diakses.";
+          break;
+        case "not-allowed":
+          errorMessage += "Akses mikrofon ditolak. Izinkan akses mikrofon di pengaturan browser.";
+          break;
+        case "network":
+          errorMessage += "Koneksi internet bermasalah.";
+          break;
+        case "aborted":
+          errorMessage += "Pencarian dibatalkan.";
+          break;
+        default:
+          errorMessage += event.error;
+      }
+      
+      alert(errorMessage);
+      stopRecognition();
+    };
+
+    recognition.onend = () => {
+      console.log("🛑 Speech recognition ended");
+      
+      if (!hasResult && isListening) {
+        // If no result but still listening, try again with Arabic
+        console.log("🔄 Tidak ada hasil, mencoba dengan bahasa Arab...");
+        recognition.lang = "ar-SA";
+        try {
+          recognition.start();
+          setDetectedMode("🎤 Mencoba dengan bahasa Arab...");
+        } catch (e) {
+          console.error("Failed to restart:", e);
+          stopRecognition();
+        }
+      } else {
+        setIsListening(false);
+      }
+    };
+
+    // Start recognition
+    try {
+      recognition.start();
+    } catch (e) {
+      console.error("Failed to start recognition:", e);
+      alert("❌ Gagal memulai speech recognition. Pastikan tidak ada tab lain yang menggunakan mikrofon.");
+      stopRecognition();
     }
   };
 
   const handleVoiceClick = () => {
     if (isListening) {
-      setIsListening(false);
-      setDetectedMode("");
+      stopRecognition();
       return;
     }
 
     if (!recognitionAvailable) {
-      alert("Browser tidak mendukung Speech Recognition");
+      alert("❌ Speech Recognition tidak tersedia.\n\nGunakan browser Chrome, Edge, atau Safari.");
       return;
     }
 
-    startSmartVoiceSearch();
+    // Check microphone permission
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(() => {
+          startVoiceRecognition();
+        })
+        .catch((err) => {
+          console.error("Microphone access denied:", err);
+          alert("❌ Akses mikrofon ditolak.\n\nBuka pengaturan browser dan izinkan akses mikrofon untuk website ini.");
+        });
+    } else {
+      startVoiceRecognition();
+    }
   };
 
   return (
@@ -126,6 +192,10 @@ export default function UnifiedSearchBar({
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          if (!searchText.trim()) {
+            alert("⚠️ Masukkan kata kunci pencarian");
+            return;
+          }
           const isRecitation = detectInputType(searchText);
           onSearch(searchText, isRecitation);
         }}
@@ -144,6 +214,7 @@ export default function UnifiedSearchBar({
           onClick={handleVoiceClick}
           className="px-3"
           disabled={!recognitionAvailable}
+          title={recognitionAvailable ? "Klik untuk mulai berbicara" : "Browser tidak mendukung"}
         >
           {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
         </Button>
@@ -153,28 +224,56 @@ export default function UnifiedSearchBar({
         </Button>
       </form>
 
-      {/* Status Messages */}
+      {/* Help Text */}
       {!recognitionAvailable && (
-        <p className="text-sm text-muted-foreground text-center">
-          Pencarian suara tidak didukung di browser Anda
-        </p>
+        <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md border border-destructive/20">
+          <p className="font-medium">⚠️ Pencarian Suara Tidak Tersedia</p>
+          <p className="mt-1 text-xs">
+            Gunakan browser Chrome, Edge, atau Safari untuk mengaktifkan fitur ini.
+          </p>
+        </div>
       )}
       
+      {recognitionAvailable && !isListening && !detectedMode && (
+        <div className="text-sm text-muted-foreground bg-accent/50 p-3 rounded-md">
+          <p className="font-medium mb-1">💡 Tips Pencarian Suara:</p>
+          <ul className="text-xs space-y-1 ml-4 list-disc">
+            <li>Klik tombol mikrofon dan izinkan akses mikrofon</li>
+            <li>Ucapkan kata kunci (misal: "surga", "neraka") atau bacakan ayat</li>
+            <li>Sistem akan otomatis mendeteksi jenis pencarian</li>
+          </ul>
+        </div>
+      )}
+
+      {/* Status Messages */}
       {isListening && (
-        <div className="text-center space-y-2 animate-in fade-in slide-in-from-top-2">
-          <p className="text-sm text-primary animate-pulse font-medium">
-            🎤 {detectedMode}
-          </p>
+        <div className="text-center space-y-2 animate-in fade-in slide-in-from-top-2 bg-primary/10 p-4 rounded-lg border-2 border-primary">
+          <div className="flex items-center justify-center gap-2">
+            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+            <p className="text-sm text-primary font-medium">
+              {detectedMode}
+            </p>
+          </div>
           <p className="text-xs text-muted-foreground">
-            Ucapkan kata kunci atau bacakan ayat - sistem akan mendeteksi otomatis
+            Ucapkan kata kunci (misal: "surga") atau bacakan ayat Al-Qur'an
           </p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={stopRecognition}
+            className="mt-2"
+          >
+            Batal
+          </Button>
         </div>
       )}
 
       {detectedMode && !isListening && (
-        <p className="text-sm text-primary text-center font-medium animate-in fade-in">
-          {detectedMode}
-        </p>
+        <div className="text-center animate-in fade-in bg-green-500/10 p-3 rounded-md border border-green-500/20">
+          <p className="text-sm text-green-600 dark:text-green-400 font-medium">
+            {detectedMode}
+          </p>
+        </div>
       )}
     </div>
   );
